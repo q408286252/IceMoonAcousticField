@@ -1,0 +1,35 @@
+{
+    "Version": "1.2",
+    "Data": {
+        "Source": "e:\\baidusyncdisk\\project\\test550\\plugins\\icemoonacousticfield\\source\\icemoonacousticfield\\private\\imacousticfieldactor.cpp",
+        "ProvidedModule": "",
+        "PCH": "e:\\baidusyncdisk\\project\\test550\\intermediate\\build\\win64\\x64\\myprojecteditor\\development\\unrealed\\sharedpch.unrealed.project.valapi.valexpapi.cpp20.h.pch",
+        "Includes": [
+            "e:\\baidusyncdisk\\project\\test550\\plugins\\icemoonacousticfield\\intermediate\\build\\win64\\x64\\unrealeditor\\development\\icemoonacousticfield\\definitions.icemoonacousticfield.h",
+            "e:\\baidusyncdisk\\project\\test550\\plugins\\icemoonacousticfield\\source\\icemoonacousticfield\\public\\imacousticfieldactor.h",
+            "e:\\baidusyncdisk\\project\\test550\\plugins\\icemoonacousticfield\\source\\icemoonacousticfield\\public\\im_acoustictypes.h",
+            "e:\\baidusyncdisk\\project\\test550\\plugins\\icemoonacousticfield\\intermediate\\build\\win64\\unrealeditor\\inc\\icemoonacousticfield\\uht\\im_acoustictypes.generated.h",
+            "e:\\baidusyncdisk\\project\\test550\\plugins\\icemoonacousticfield\\source\\icemoonacousticfield\\public\\da_im_materialmap.h",
+            "e:\\baidusyncdisk\\project\\test550\\plugins\\icemoonacousticfield\\intermediate\\build\\win64\\unrealeditor\\inc\\icemoonacousticfield\\uht\\da_im_materialmap.generated.h",
+            "e:\\baidusyncdisk\\project\\test550\\plugins\\icemoondatainterface\\source\\im_common\\public\\gameplay\\imsystemstats.h",
+            "e:\\baidusyncdisk\\project\\test550\\plugins\\icemoonacousticfield\\intermediate\\build\\win64\\unrealeditor\\inc\\icemoonacousticfield\\uht\\imacousticfieldactor.generated.h",
+            "e:\\baidusyncdisk\\project\\test550\\plugins\\icemoonacousticfield\\source\\icemoonacousticfield\\public\\da_im_acousticfieldconfig.h",
+            "e:\\baidusyncdisk\\project\\test550\\plugins\\icemoonacousticfield\\intermediate\\build\\win64\\unrealeditor\\inc\\icemoonacousticfield\\uht\\da_im_acousticfieldconfig.generated.h",
+            "e:\\baidusyncdisk\\project\\test550\\plugins\\icemoonblueprintgpumathutilities\\source\\icemoonblueprintgpumathutilities\\public\\immathutils.h",
+            "e:\\baidusyncdisk\\project\\test550\\plugins\\icemoondatainterface\\source\\im_common\\public\\gameplay\\im_worldutils.h",
+            "e:\\epic_game\\ue_5.6\\engine\\source\\runtime\\engine\\classes\\kismet\\gameplaystatics.h",
+            "e:\\epic_game\\ue_5.6\\engine\\source\\runtime\\engine\\classes\\kismet\\kismetsystemlibrary.h",
+            "e:\\epic_game\\ue_5.6\\engine\\source\\runtime\\coreuobject\\public\\uobject\\propertyaccessutil.h",
+            "e:\\epic_game\\ue_5.6\\engine\\intermediate\\build\\win64\\unrealeditor\\inc\\engine\\uht\\kismetsystemlibrary.generated.h",
+            "e:\\epic_game\\ue_5.6\\engine\\source\\runtime\\engine\\classes\\sound\\dialoguetypes.h",
+            "e:\\epic_game\\ue_5.6\\engine\\intermediate\\build\\win64\\unrealeditor\\inc\\engine\\uht\\dialoguetypes.generated.h",
+            "e:\\epic_game\\ue_5.6\\engine\\source\\runtime\\engine\\classes\\kismet\\gameplaystaticstypes.h",
+            "e:\\epic_game\\ue_5.6\\engine\\intermediate\\build\\win64\\unrealeditor\\inc\\engine\\uht\\gameplaystaticstypes.generated.h",
+            "e:\\epic_game\\ue_5.6\\engine\\intermediate\\build\\win64\\unrealeditor\\inc\\engine\\uht\\gameplaystatics.generated.h",
+            "e:\\baidusyncdisk\\project\\test550\\plugins\\icemoondatainterface\\source\\im_common\\public\\gameplay\\imactivationstatemachine.h",
+            "e:\\baidusyncdisk\\project\\test550\\plugins\\icemoondatainterface\\intermediate\\build\\win64\\unrealeditor\\inc\\im_common\\uht\\imactivationstatemachine.generated.h"
+        ],
+        "ImportedModules": [],
+        "ImportedHeaderUnits": []
+    }
+}

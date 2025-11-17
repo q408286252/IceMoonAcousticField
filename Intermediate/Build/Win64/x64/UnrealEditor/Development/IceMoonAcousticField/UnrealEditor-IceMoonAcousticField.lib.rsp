@@ -1,0 +1,13 @@
+/NOLOGO
+/errorReport:prompt
+/MACHINE:x64
+/SUBSYSTEM:WINDOWS
+/DEF
+/NAME:"UnrealEditor-IceMoonAcousticField.dll"
+/IGNORE:4221
+/NODEFAULTLIB
+"E:/BaiduSyncdisk/project/Test550/Intermediate/Build/Win64/x64/MyProjectEditor/Development/UnrealEd/SharedPCH.UnrealEd.Project.ValApi.ValExpApi.Cpp20.h.obj"
+"E:/BaiduSyncdisk/project/Test550/Plugins/IceMoonAcousticField/Intermediate/Build/Win64/x64/UnrealEditor/Development/IceMoonAcousticField/Module.IceMoonAcousticField.cpp.obj"
+"E:/BaiduSyncdisk/project/Test550/Plugins/IceMoonAcousticField/Intermediate/Build/Win64/x64/UnrealEditor/Development/IceMoonAcousticField/IMAcousticFieldActor.cpp.obj"
+"E:/BaiduSyncdisk/project/Test550/Plugins/IceMoonAcousticField/Intermediate/Build/Win64/x64/UnrealEditor/Development/IceMoonAcousticField/Default.rc2.res"
+/OUT:"E:/BaiduSyncdisk/project/Test550/Plugins/IceMoonAcousticField/Intermediate/Build/Win64/x64/UnrealEditor/Development/IceMoonAcousticField/UnrealEditor-IceMoonAcousticField.lib"
