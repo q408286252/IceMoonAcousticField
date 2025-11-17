@@ -6,3 +6,4 @@
 #include "E:/BaiduSyncdisk/project/Test550/Plugins/IceMoonAcousticField/Intermediate/Build/Win64/UnrealEditor/Inc/IceMoonAcousticField/UHT/IM_AcousticTypes.gen.cpp"
 #include "E:/BaiduSyncdisk/project/Test550/Plugins/IceMoonAcousticField/Intermediate/Build/Win64/x64/UnrealEditor/Development/IceMoonAcousticField/PerModuleInline.gen.cpp"
 #include "E:/BaiduSyncdisk/project/Test550/Plugins/IceMoonAcousticField/Source/IceMoonAcousticField/Private/IceMoonAcousticField.cpp"
+#include "E:/BaiduSyncdisk/project/Test550/Plugins/IceMoonAcousticField/Source/IceMoonAcousticField/Private/IMAcousticFieldActor.cpp"
