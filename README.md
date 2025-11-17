@@ -115,7 +115,7 @@ bool QueryAcousticFieldSmooth(
     float SmoothSpeed = 3.0f
 );
 📜 Licensing and MaintenanceThis project is provided free under the BSD 3-Clause License.No Feature Requests: This project does not accept feature requests or functional enhancement Issues. Relevant Issues will be automatically closed.Bugs Only: The Issues section is strictly for reporting engine compatibility problems or critical bugs.Contributors submitting PRs will be credited in the Credits.md file.If used in a commercial project, mentioning "IceMoon" in the game's credits is appreciated.Made with ❄️ by IceMoon | UE 5.6+ | BSD 3-Clause
-
+```
 
 # IceMoon Acoustic Field
 
