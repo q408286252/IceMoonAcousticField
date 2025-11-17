@@ -289,4 +289,4 @@ stat IMSystem
 
 ---
 
-**Made with ❄️ by IceMoon | UE 5.5+ | BSD 3-Clause**
+**Made with ❄️ by IceMoon | UE 5.6+ | BSD 3-Clause**
