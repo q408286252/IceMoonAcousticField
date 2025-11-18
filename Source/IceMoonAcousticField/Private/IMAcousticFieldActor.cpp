@@ -110,13 +110,16 @@ void AIceMoonAcousticField::Tick(float DeltaTime)
 		{
 			const float CellSize = LodCellSizes[LodIndex];
 			const float CellSizeZ = LodCellSizesZ[LodIndex]; // Z轴钳制后的尺寸
-			const FColor DrawColor = LodIndex < LodColors.Num() ? LodColors[LodIndex] : FColor::White;
+			FColor DrawColor = LodIndex < LodColors.Num() ? LodColors[LodIndex] : FColor::White;
 
 			for (const auto& CellPair : AcousticGridArray[LodIndex])
 			{
 				const FIntVector& GridCoord = CellPair.Key;
 				const FIM_GridAudioCell& Cell = CellPair.Value;
 
+				const FIM_AudioReverbParameters ReverbParams = CalculateCellReverbParameters(FVector::ZeroVector, Cell);
+				DrawColor.A = static_cast<uint8>(FMath::Clamp(ReverbParams.Wet * 200.0f + 20.0f, 20.0f, 220.0f));
+				
 				// 计算cell的中心位置（Z轴使用钳制后的尺寸）
 				const FVector CellCenter(
 					(GridCoord.X + 0.5f) * CellSize,
@@ -129,7 +132,7 @@ void AIceMoonAcousticField::Tick(float DeltaTime)
 				DrawDebugBox(GetWorld(), CellCenter, CellExtent, DrawColor, false, -1.0f, 0, 2.0f);
 
 				// 在cell中心绘制一个小球，表示平均命中位置
-				DrawDebugSphere(GetWorld(), Cell.RayRes.AveHitLocation, 10.0f, 8, DrawColor, false, -1.0f, 0, 2.0f);
+				//DrawDebugSphere(GetWorld(), Cell.RayRes.AveHitLocation, 10.0f, 8, DrawColor, false, -1.0f, 0, 2.0f);
 
 				// 绘制cell信息（probe数量）
 				const FString CellInfo = FString::Printf(TEXT("P:%d"), Cell.RayRes.ProbeCount);
@@ -139,7 +142,7 @@ void AIceMoonAcousticField::Tick(float DeltaTime)
 	}
 #endif
 	if (CurrentState >= 2) return;
-	
+
 	//如果激活则 启动 清理grid的cell计划  TODO目前写的随意
 	if (GetWorld()->TimeSince(LastCleanupTime) > 5.0f)
 	{
@@ -166,76 +169,121 @@ AIceMoonAcousticField* AIceMoonAcousticField::GetAcousticFieldActor(const UObjec
 }
 
 
-void AIceMoonAcousticField::AsyncFireProbes( FVector Origin, int32 NumTraces, float Radius, FVector Direction, float ConeDegree, int RandomSeed) //理论上应该是斐波那契球 半球为默认  Direction 和 cone度数没用
+void AIceMoonAcousticField::AsyncFireProbes( FVector Origin, int32 NumTraces, float Radius, FVector Direction, float ConeDegree, int RandomSeed)
 {
 	UWorld* World = GetWorld();
 	if (!World || NumTraces <= 0) return;
-
 	FTraceDelegate TraceDelegate;
 	TraceDelegate.BindUObject(this, &AIceMoonAcousticField::OnAsyncTraceComplete);
-	
 	TArray<FVector> SampleDirections;
-	//IMMathUtils::GetFibonacciSphereSamples(SampleDirections, NumTraces, Direction, ConeDegree, true, ProbeRandomStream);
 	IMMathUtils::GetFibonacciSphereSamples(SampleDirections, NumTraces, Direction, ConeDegree, true, RandomSeed);
+
+	FCollisionQueryParams Params;
+	Params.bReturnPhysicalMaterial = true;
+	Params.MobilityType = EQueryMobilityType::Static;
+
 	for (const FVector& RandomDir : SampleDirections)
 	{
+		const FVector Start = Origin + RandomDir * 3.0f;//开始位置 偏移3.0cm 为了防止大部分box墙面是000 1,0,0等固定整数正好在 阀值位置的困境
 		const FVector End = Origin + RandomDir * Radius;
 
-		FCollisionQueryParams Params;
-		Params.bReturnPhysicalMaterial = true;
 #if WITH_EDITOR
 		if (bDebug)
 		{
-			DrawDebugLine(GetWorld(), Origin, Origin + RandomDir * 50.0f, FColor::Blue, false, 0.5f);
-			//UE_LOG(LogTemp, Log, TEXT("IMAcousticField: 1. 发送了一个异步射线任务  to 异步射线回调 %f,%f,%f"), RandomDir.X, RandomDir.Y, RandomDir.Z);
+			DrawDebugLine(World, Origin, Origin + RandomDir * 50.0f, FColor::Blue, false, 0.5f);
 		}
 #endif
-		//开始位置 偏移0.5cm 为了防止大部分box墙面是000 1,0,0等固定整数正好在 阀值位置的困境
-		GetWorld()->AsyncLineTraceByObjectType(EAsyncTraceType::Single, Origin + RandomDir*.5, End, ECollisionChannel::ECC_WorldStatic, Params, &TraceDelegate);
+		World->AsyncLineTraceByObjectType(
+			EAsyncTraceType::Single,
+			Start,
+			End,
+			ECollisionChannel::ECC_WorldStatic,
+			Params,
+			&TraceDelegate
+		);
 	}
 }
 void AIceMoonAcousticField::OnAsyncTraceComplete(const FTraceHandle& TraceHandle, FTraceDatum& TraceDatum)
 {
 	SCOPE_CYCLE_COUNTER(STAT_IMAcousticField_TraceCallback);
-	for (int i = 0; i < TraceDatum.OutHits.Num(); ++i)
+
+	// 核心修复：检查 OutHits 是否为空（未命中时为空）
+	if (TraceDatum.OutHits.Num() > 0)
 	{
+		// 命中：正常处理所有命中结果
+		for (int i = 0; i < TraceDatum.OutHits.Num(); ++i)
+		{
+			const FHitResult& Hit = TraceDatum.OutHits[i];
+#if WITH_EDITOR
+			if (bDebug)
+			{
+				AActor* HitActor = Hit.GetActor();
+				const FString ActorName = HitActor ? HitActor->GetName() : TEXT("None");
+				const float Dist = Hit.Distance;
+				UE_LOG(LogTemp, Log, TEXT("  [命中] %s (%.1fcm)"), *ActorName, Dist);
+				DrawDebugLine(GetWorld(), Hit.TraceStart, Hit.ImpactPoint, FColor::Yellow, false, 0.5f);
+			}
+#endif
+			AddProbeFromHitResultOnlayWorldStatic(Hit);
+		}
+	}else{
+		// 未命中：OutHits 为空，手动创建未命中的 HitResult
+		FHitResult MissResult;
+		MissResult.TraceStart = TraceDatum.Start;
+		MissResult.TraceEnd = TraceDatum.End;
+		MissResult.bBlockingHit = false;
 #if WITH_EDITOR
 		if (bDebug)
 		{
-			DrawDebugLine(GetWorld(), TraceDatum.OutHits[i].TraceStart, TraceDatum.OutHits[i].TraceEnd, FColor::Yellow, false, 0.5f);
+			UE_LOG(LogTemp, Warning, TEXT("  [未命中] 射向开阔空间"));
+			DrawDebugLine(GetWorld(), TraceDatum.Start, TraceDatum.End, FColor::Red, false, 0.5f);
 		}
 #endif
-		AddProbeFromHitResultOnlayWorldStatic(TraceDatum.OutHits[i]);
+		// 添加未命中记录（只增加 ProbeCount，不增加 RayHitCount）
+		AddProbeFromHitResultOnlayWorldStatic(MissResult);
 	}
 }
 void AIceMoonAcousticField::AddProbeFromHitResultOnlayWorldStatic(const FHitResult& HitResult)
 {
-	if (!HitResult.bBlockingHit) return;
+	// 未命中的射线也需要记录（代表开阔空间）
+	// 不要过早return，让AddAudioFieldForLod处理所有情况
 
-	AActor* HitActor = HitResult.GetActor();
-	if (HitActor){ //如果没查询到命中目标也添加只不过是添加未命中记数
-		if ( HitActor->GetRootComponent()->Mobility == EComponentMobility::Movable) // Static  和  Stationary 则添加
+	if (HitResult.bBlockingHit)
+	{
+		AActor* HitActor = HitResult.GetActor();
+		if (HitActor)
 		{
-			// TODO: 灰名单容错机制（中优先级）- 临时屏蔽错误配置的Movable Actor
-#if WITH_EDITOR
-			if (bDebug)
+			if (HitActor->GetRootComponent()->Mobility == EComponentMobility::Movable) // Static 和 Stationary 则添加
 			{
-				UE_LOG(LogTemp, Warning, TEXT("IMAcousticField: 忽略可移动物体 - %s"), *HitActor->GetName());
-			}
+				// TODO: 灰名单容错机制（中优先级）- 临时屏蔽错误配置的Movable Actor
+#if WITH_EDITOR
+				if (bDebug)
+				{
+					UE_LOG(LogTemp, Warning, TEXT("IMAcousticField: 忽略可移动物体 - %s"), *HitActor->GetName());
+				}
 #endif
-			return; //组件必须静态
+				return; // 组件必须静态
+			}
 		}
 	}
+
+	// 无论命中与否都记录到声场
 	AddAudioFieldForLod(HitResult);
 }
 void AIceMoonAcousticField::AddAudioFieldForLod(const FHitResult& HitResult)
 {
 	const FVector StartPos = HitResult.TraceStart;
-	const FVector HitLocation = HitResult.ImpactPoint;
-	const float Distance = (StartPos - HitLocation).Length();
-	const FIM_AudioMaterialResponse AudioData = GetAudioResponseForMaterial(HitResult.PhysMaterial.Get());
+
+	// 判断射线是否有效命中（必须是非移动组件）
+	const bool bIsValidHit = HitResult.bBlockingHit;
+
+	// 获取命中相关数据（仅在命中时使用）
+	const FVector HitLocation = bIsValidHit ? HitResult.ImpactPoint : FVector::ZeroVector;
+	const float Distance = bIsValidHit ? (StartPos - HitLocation).Length() : 0.0f;
+	const FIM_AudioMaterialResponse AudioData = bIsValidHit ? GetAudioResponseForMaterial(HitResult.PhysMaterial.Get()) : FIM_AudioMaterialResponse();
+	const float DirecitonVar = bIsValidHit ? HitResult.ImpactNormal.Dot(HitResult.Normal) : 0.0f;
 	const float CurrentTime = GetWorld()->GetTimeSeconds();
-	const float DirecitonVar = HitResult.ImpactNormal.Dot(HitResult.Normal);
+
 	if (AcousticGridArray.IsEmpty()) return;
 
 	// --- 3. 写入LOD 0并向上递归更新掩码 ---
@@ -251,14 +299,14 @@ void AIceMoonAcousticField::AddAudioFieldForLod(const FHitResult& HitResult)
 			FMath::FloorToInt(StartPos.Z / CellSizeZ)
 		);
 
-		// 写入主数据
+		// 写入主数据（bIsValidHit = false 时只增加 ProbeCount，不记录材质）
 		const bool bIsNewCell = !AcousticGridArray[LodIndex].Contains(GridCoord);
-		AcousticGridArray[LodIndex].FindOrAdd(GridCoord).AddProbeData(HitLocation, Distance, HitResult.IsValidBlockingHit(), DirecitonVar, AudioData, CurrentTime);
+		AcousticGridArray[LodIndex].FindOrAdd(GridCoord).AddProbeData(HitLocation, Distance, bIsValidHit, DirecitonVar, AudioData, CurrentTime);
 #if WITH_EDITOR
-		// 只输出新建 Cell 的信息
+		// 只输出新建 Cell 的信息（使用不同的标记便于区分）
 		if (bDebug && bIsNewCell)
 		{
-			UE_LOG(LogTemp, Log, TEXT("IMAcousticField: 新建Cell LOD%d %s (总数:%d)"),
+			UE_LOG(LogTemp, Display, TEXT("  [新建Cell] LOD%d @ %s (总数:%d)"),
 				LodIndex, *GridCoord.ToString(), AcousticGridArray[LodIndex].Num());
 		}
 #endif
@@ -443,9 +491,10 @@ bool AIceMoonAcousticField::QueryAcousticField(FVector QueryLocation, FIM_AudioR
 	for (int32 LodIndex = TopLod; LodIndex >= 0; --LodIndex)
 	{
 		FIM_AudioReverbParameters LodResponse;
+		int32 Cells = 0, Probes = 0, Hits = 0;
 
 		// 每个LOD都做插值查询（搜索周围格子）
-		if (InterpolateAtLod(LodIndex, QueryLocation, LodResponse))
+		if (InterpolateAtLod(LodIndex, QueryLocation, LodResponse, &Cells, &Probes, &Hits))
 		{
 			// 获取该LOD的固定权重
 			const float LodWeight = (LodIndex < LodWeights.Num()) ? LodWeights[LodIndex] : 0.1f;
@@ -463,8 +512,9 @@ bool AIceMoonAcousticField::QueryAcousticField(FVector QueryLocation, FIM_AudioR
 #if WITH_EDITOR
 			if (bDebug)
 			{
-				UE_LOG(LogTemp, Log, TEXT("IMAcousticField: -> LOD %d 查询成功, Weight=%.2f, Wet=%.2f, TotalWeight=%.2f"),
-					LodIndex, LodWeight, LodResponse.Wet, TotalWeight);
+				const float HitRate = Probes > 0 ? static_cast<float>(Hits) / static_cast<float>(Probes) : 0.0f;
+				UE_LOG(LogTemp, Log, TEXT("IMAcousticField: -> LOD %d: W=%.2f, Wet=%.2f [C=%d, P=%d, H=%d, HR=%.2f]"),
+					LodIndex, LodWeight, LodResponse.Wet, Cells, Probes, Hits, HitRate);
 			}
 #endif
 		}
@@ -636,22 +686,14 @@ FIM_AudioReverbParameters AIceMoonAcousticField::CalculateCellReverbParameters(c
 		WetParams.WetNearWallBoost,
 		MinDistM);
 
-	// 综合计算Wet
-	float WetBase = ClosureFactor * HitRateFactor * UniformityFactor;
-	Reverb.Wet = FMath::Clamp(WetBase + NearWallBoost, 0.0f, 1.0f);
+	// 综合计算Wet（指数饱和映射）
+	float WetRaw = ClosureFactor * HitRateFactor * UniformityFactor + NearWallBoost;
 
-#if WITH_EDITOR
-	if (bDebug)
-	{
-		// 只在异常情况输出：高方差或单射线
-		if (EffectiveVarianceCm2 > 50000.0f || CellResults.RayRes.RayHitCount <= 2)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("IMAcousticField: [加权] AvgDist=%.1fm(含未命中), HitRate=%.2f, EffectiveVar=%.0f, MinDist=%.1fm → Wet=%.2f (Hit=%d, Miss=%d, Total=%d)"),
-				AvgDistanceM, HitRate, EffectiveVarianceCm2, MinDistM, Reverb.Wet,
-				CellResults.RayRes.RayHitCount, MissCount, CellResults.RayRes.ProbeCount);
-		}
-	}
-#endif
+	// 指数饱和曲线：Wet = Max * (1 - e^(-k*x))
+	// 特点：低值时接近线性响应，高值时自然饱和到MaxWetValue
+	// SaturationRate控制曲线陡峭度（2.5为推荐值，越大越陡）
+	const float SaturationRate = 2.5f;
+	Reverb.Wet = WetParams.MaxWetValue * (1.0f - FMath::Exp(-SaturationRate * WetRaw));
 	
 	FVector3d camPos = IMWorldUtils::GetCameraLocation(this);
 	//FVector camPos = FVector();
@@ -679,7 +721,7 @@ FIM_AudioReverbParameters AIceMoonAcousticField::CalculateCellReverbParameters(c
 	return Reverb;
 }
 
-bool AIceMoonAcousticField::InterpolateAtLod(const int32 LodIndex, const FVector QueryLocation, FIM_AudioReverbParameters& OutInterpolatedResponse)
+bool AIceMoonAcousticField::InterpolateAtLod(const int32 LodIndex, const FVector QueryLocation, FIM_AudioReverbParameters& OutInterpolatedResponse, int32* OutCells, int32* OutProbes, int32* OutHits)
 {
 	// TODO: [高优先级] GPU SDF空间连续性检测系统
 	// 详细架构方案和GPU延迟处理策略请查看：IM_AcousticTypes.h:75-155
@@ -740,7 +782,12 @@ bool AIceMoonAcousticField::InterpolateAtLod(const int32 LodIndex, const FVector
 	AccumulatedResponse.Diffusion = 0.0f;
 	AccumulatedResponse.Dampening = 0.0f;
 	float TotalWeight = 0.0f;
-	
+
+	// 统计插值使用的探针信息
+	int32 TotalProbes = 0;
+	int32 TotalHits = 0;
+	int32 CellsUsed = 0;
+
 	for (const FIM_GridAudioCell& Cell : NearbyCells)
 	{
 		//注意这里是距离平方 1 4 16 查询周围1.5倍单元格  16最大可能查询到3格=48米外 4800*4800=23040000的点 1.0f / DistanceSqr直接炸了别说Confidence方差也是一个巨幅缩减的玩意
@@ -752,10 +799,14 @@ bool AIceMoonAcousticField::InterpolateAtLod(const int32 LodIndex, const FVector
 #if WITH_EDITOR
 			if (bDebug)
 			{
-				UE_LOG(LogTemp, Log, TEXT("IMAcousticField: -> Direct cell hit (dist < 1m), no interpolation needed"));
+				const float HitRate = Cell.RayRes.ProbeCount > 0
+					? static_cast<float>(Cell.RayRes.RayHitCount) / static_cast<float>(Cell.RayRes.ProbeCount)
+					: 0.0f;
+				UE_LOG(LogTemp, Log, TEXT("IMAcousticField: -> Direct cell hit (dist < 1m) [Probes=%d, Hits=%d, HitRate=%.2f]"),
+					Cell.RayRes.ProbeCount, Cell.RayRes.RayHitCount, HitRate);
 				// 绘制直接命中的cell
 				DrawDebugLine(GetWorld(), QueryLocation, Cell.RayRes.AveHitLocation, FColor::White, false, 0.5f, 0, 4.0f);
-				DrawDebugSphere(GetWorld(), Cell.RayRes.AveHitLocation, 15.0f, 8, FColor::White, false, 0.5f, 0, 2.0f);
+				//DrawDebugSphere(GetWorld(), Cell.RayRes.AveHitLocation, 15.0f, 8, FColor::White, false, 0.5f, 0, 2.0f);
 			}
 #endif
 			return true;
@@ -784,6 +835,11 @@ bool AIceMoonAcousticField::InterpolateAtLod(const int32 LodIndex, const FVector
 		AccumulatedResponse.Diffusion += currnetParameter.Diffusion * Weight;
 		AccumulatedResponse.Dampening += currnetParameter.Dampening * Weight;
 		TotalWeight += Weight;
+
+		// 统计探针信息
+		TotalProbes += Cell.RayRes.ProbeCount;
+		TotalHits += Cell.RayRes.RayHitCount;
+		CellsUsed++;
 #if WITH_EDITOR
 		if (bDebug)
 		{
@@ -792,7 +848,7 @@ bool AIceMoonAcousticField::InterpolateAtLod(const int32 LodIndex, const FVector
 			FColor InterpColor = FColor::Cyan;
 			InterpColor.A = static_cast<uint8>(FMath::Clamp(Weight * 255.0f, 30.0f, 200.0f));
 			DrawDebugLine(GetWorld(), QueryLocation, Cell.RayRes.AveHitLocation, InterpColor, false, 0.5f, 0, LineThickness);
-			DrawDebugSphere(GetWorld(), Cell.RayRes.AveHitLocation, 8.0f, 6, InterpColor, false, 0.5f, 0, 1.0f);
+			//DrawDebugSphere(GetWorld(), Cell.RayRes.AveHitLocation, 8.0f, 6, InterpColor, false, 0.5f, 0, 1.0f);
 		}
 #endif
 	}
@@ -806,6 +862,11 @@ bool AIceMoonAcousticField::InterpolateAtLod(const int32 LodIndex, const FVector
 		AccumulatedResponse.Diffusion = AccumulatedResponse.Diffusion / TotalWeight;
 		AccumulatedResponse.Dampening = AccumulatedResponse.Dampening / TotalWeight;
 		OutInterpolatedResponse = AccumulatedResponse;
+
+		// 返回统计信息（可选）
+		if (OutCells) *OutCells = CellsUsed;
+		if (OutProbes) *OutProbes = TotalProbes;
+		if (OutHits) *OutHits = TotalHits;
 
 		return true;
 	}else
@@ -896,6 +957,13 @@ bool AIceMoonAcousticField::QueryAcousticFieldSmooth(
 	FIM_AudioReverbParameters& OutResponse,
 	float SmoothSpeed)
 {
+#if WITH_EDITOR
+	if (bDebug)
+	{
+		UE_LOG(LogTemp, Log, TEXT("IMAcousticField: 查询开始 --------------------"));
+
+	}
+#endif
 	if (!SourceObject)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("IMAcousticField::QueryAcousticFieldSmooth - SourceObject is null"));
@@ -943,16 +1011,11 @@ bool AIceMoonAcousticField::QueryAcousticFieldSmooth(
 	// 计算时间增量（限制最大1.0秒，防止暂停后的跳变）
 	const float DeltaTime = FMath::Clamp(CurrentTime - Cache->LastQueryTime, 0.0f, 1.0f);
 
-	// ========== 自适应平滑速度 ==========
-	// 问题：固定SmoothSpeed对大幅度变化响应太慢（如从封闭区域→开阔空间）
-	// 解决：根据Wet变化幅度自适应调整平滑速度
+	// 问题：固定SmoothSpeed对大幅度变化响应太慢（如从封闭区域→开阔空间） 解决：根据Wet变化幅度自适应调整平滑速度
 	const float WetChange = FMath::Abs(TargetResponse.Wet - Cache->LastResult.Wet);
 
-	// 自适应因子：小变化→1.0（慢速平滑），大变化→0.15（快速响应，6.67倍加速）
-	// 阈值调整为更激进：< 0.05（微小变化） → > 0.15（显著变化）
-	// 修复前：0.1→1.0, 0.25→0.25 (变化0.128时仅加速1.16倍)
-	// 修复后：0.05→1.0, 0.15→0.15 (变化0.128时加速约5倍)
-	const float AdaptiveFactor = IMMathUtils::Remap_Sat<float>(0.075f, 0.2f, 1.0f, 0.2f, WetChange);
+	// 自适应因子：小变化→1.0（慢速平滑），大变化→0.25（快速响应，4倍加速）
+	const float AdaptiveFactor = IMMathUtils::Remap_Sat<float>(0.075f, 0.2f, 1.0f, 0.25f, WetChange);
 	const float EffectiveSmoothSpeed = SmoothSpeed * AdaptiveFactor;
 
 	// 指数平滑：Alpha = 1 - e^(-Δt / τ)

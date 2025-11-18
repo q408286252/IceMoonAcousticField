@@ -75,7 +75,7 @@ public:
      * @param NumTraces 发射的射线数量。
      */
     UFUNCTION(BlueprintCallable, Category = "IM|Tracing")
-    void AsyncFireProbes(FVector Origin, int32 NumTraces = 1, float Radius = 2000.0f, FVector ConeDirection = FVector::UpVector, float ConeDegree = 179.99,  int RandomSeed = -1); 
+    void AsyncFireProbes(FVector Origin, int32 NumTraces = 3, float Radius = 2000.0f, FVector ConeDirection = FVector::UpVector, float ConeDegree = 179.99,  int RandomSeed = -1); 
     
     // 临近查询 如果有多个则插值
     UFUNCTION(BlueprintCallable, Category = "IM|Acoustics")
@@ -221,7 +221,7 @@ private:
     FIM_AudioReverbParameters CalculateCellReverbParameters(const FVector QueryPos,const FIM_GridAudioCell& CellResults);
 
     void AddAudioFieldForLod(const FHitResult& HitResult);
-    bool InterpolateAtLod(const int32 LodIndex, const FVector QueryLocation, FIM_AudioReverbParameters& OutInterpolatedResponse);
+    bool InterpolateAtLod(const int32 LodIndex, const FVector QueryLocation, FIM_AudioReverbParameters& OutInterpolatedResponse, int32* OutCells = nullptr, int32* OutProbes = nullptr, int32* OutHits = nullptr);
     void TickTrimAudioFieldForLod(const float GameTime);
 
     // 配置获取辅助函数（优先使用Override，否则使用ConfigAsset）

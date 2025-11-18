@@ -209,10 +209,10 @@ struct FIM_WetCalculationParameters
     FIM_WetCalculationParameters()
     : WetClosedDistanceThreshold(2.0f),
     WetOpenDistanceThreshold(15.0f),
-    WetHitRateLow(0.3f),
-    WetHitRateHigh(0.7f),
-    WetNearWallDistance(0.5f),
-    WetNearWallBoost(0.3f)
+    WetHitRateLow(0.2f),
+    WetHitRateHigh(0.8f),
+    WetNearWallDistance(0.3f),
+    WetNearWallBoost(0.2f)
     {}
 
     /** 封闭空间的平均距离阈值（米）：小于此值认为是封闭房间 */
@@ -225,19 +225,23 @@ struct FIM_WetCalculationParameters
 
     /** 命中率低阈值：低于此值混响减弱 */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wet Calculation", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-    float WetHitRateLow = 0.3f;
+    float WetHitRateLow = 0.2f;
 
     /** 命中率高阈值：高于此值混响增强 */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wet Calculation", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-    float WetHitRateHigh = 0.7f;
+    float WetHitRateHigh = 0.8f;
 
     /** 靠墙距离阈值（米）：小于此值时增强混响 */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wet Calculation", meta = (ClampMin = "0.2", ClampMax = "2.0"))
-    float WetNearWallDistance = 0.5f;
+    float WetNearWallDistance = 0.3f;
 
     /** 靠墙混响增强量：靠近墙壁时额外增加的Wet值 */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wet Calculation", meta = (ClampMin = "0.0", ClampMax = "0.5"))
-    float WetNearWallBoost = 0.3f;
+    float WetNearWallBoost = 0.2f;
+
+    /** Wet最大值：Wet的理论最大输出值（使用平滑压缩映射，而非硬截断） */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wet Calculation", meta = (ClampMin = "0.3", ClampMax = "1.0"))
+    float MaxWetValue = 0.6f;
 };
 
 //--------------------------------------------------------------------------------------------------
