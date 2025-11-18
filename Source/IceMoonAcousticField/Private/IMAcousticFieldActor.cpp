@@ -180,7 +180,7 @@ void AIceMoonAcousticField::AsyncFireProbes( FVector Origin, int32 NumTraces, fl
 
 	FCollisionQueryParams Params;
 	Params.bReturnPhysicalMaterial = true;
-	Params.MobilityType = EQueryMobilityType::Static;
+	Params.MobilityType = EQueryMobilityType::Static; // 只查询 Static Mobility 的对象
 
 	for (const FVector& RandomDir : SampleDirections)
 	{
@@ -193,12 +193,17 @@ void AIceMoonAcousticField::AsyncFireProbes( FVector Origin, int32 NumTraces, fl
 			DrawDebugLine(World, Origin, Origin + RandomDir * 50.0f, FColor::Blue, false, 0.5f);
 		}
 #endif
-		World->AsyncLineTraceByObjectType(
+		// 【修复】改用 ByChannel + MobilityType 方案：
+		// - Visibility 通道：大部分静态几何体默认 Block，查询组件默认 Ignore
+		// - MobilityType::Static：只查询 Mobility=Static 的对象，自动过滤动态查询组件
+		// 优势：不需要手动维护忽略列表，配置更清晰
+		World->AsyncLineTraceByChannel(
 			EAsyncTraceType::Single,
 			Start,
 			End,
-			ECollisionChannel::ECC_WorldStatic,
+			ECC_Visibility, // 使用 Visibility 通道代替 ObjectType 查询
 			Params,
+			FCollisionResponseParams::DefaultResponseParam, // ByChannel 需要此参数
 			&TraceDelegate
 		);
 	}
